@@ -1,6 +1,8 @@
 import express from "express";
 import mongoose from "mongoose";
 
+import { Book } from "../mongoose-setup.js";
+
 // Book router, for browsing books.
 const bookRouter = express.Router();
 
@@ -8,15 +10,16 @@ const bookRouter = express.Router();
 
 bookRouter.get("/", async (req, res) => {
 	let filters = { price: {} };
+	let start, limit;
 	({
 		title: filters.title,
 		author: filters.author,
 		genre: filters.genre,
 		description: filters.description,
-		priceLessThan: filters.price.lt,
-		priceGreaterThan: filters.price.gt,
-		start,
-		limit,
+		priceLessThan: filters.price.lt = 99999,
+		priceGreaterThan: filters.price.gt = 0,
+		start = 0,
+		limit = 5,
 	} = req.query);
 	if (filters.description)
 		filters.description = filters.description.substring(0, 200);
@@ -36,7 +39,7 @@ bookRouter.get("/", async (req, res) => {
 	}
 
 	const predicate = {};
-	if (bookID) predicate["_id"] = mongoose.Types.ObjectId(bookID);
+	if (req.query.bookID) predicate["_id"] = mongoose.Types.ObjectId.createFromHexString(req.query.bookID);
 	else {
 		if (filters.title)
 			predicate.title = { $regex: new String(filters.title) };
@@ -57,7 +60,7 @@ bookRouter.get("/", async (req, res) => {
 			predicate.price = { $lt: Number.parseFloat(filters.price.lt) };
 	}
 
-	const filteredBooks = Book.find(predicate);
+	const filteredBooks = await Book.find(predicate, "-__v -itemImage");
 
 	res.status(200).send(JSON.parse(JSON.stringify(filteredBooks)));
 });

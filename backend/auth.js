@@ -1,37 +1,44 @@
 import { LRUCache } from "lru-cache";
-import { createHash } from "node:crypto";
+import CryptoJS from "crypto-js";
 import { Buffer } from "node:buffer";
 
 import { User, Admin, Seller } from "./mongoose-setup.js";
 
-const PASSWORD_SALT = process.env.PASSWORD_SALT;
 const cachedCredentials = new LRUCache({ max: 500, allowStale: false });
 
-async function validateCredentials(email, passwordHash, role) {
-	let storedHash;
+async function validateCredentials(email, passwordHash, role, fastCheck=false) {
+	const calculatedHash = CryptoJS.MD5(
+		process.env.PASSWORD_SALT + ":" + passwordHash,
+	).toString(CryptoJS.enc.Hex);
+
+	let storedHash, roleRecord;
 	if (cachedCredentials.has(email)) storedHash = cachedCredentials.get(email);
-	else if (role === "User")
-		storedHash = (await User.findOne({ email: email })).password;
+
+	if (fastCheck && cachedCredentials.has(email)) {
+		storedHash = cachedCredentials.get(email);
+		return [storedHash === calculatedHash, undefined];
+	}
+
+	if (role === "User") roleRecord = await User.findOne({ email });
 	else if (role === "Admin")
-		storedHash = (await Admin.findOne({ email: email })).password;
+		roleRecord = await Admin.findOne({ email });
 	else if (role === "Seller")
-		storedHash = (await Seller.findOne({ email: email })).password;
+		roleRecord = await Seller.findOne({ email });
 	else throw Error('"role" must be one of "User", "Admin" or "Seller".');
 
-	cachedCredentials.set(email, passwordHash);
+	if (!roleRecord) return [false, undefined];
 
-	const calculatedHash = createHash("md5")
-		.update(PASSWORD_SALT + ":" + passwordHash)
-		.digest("hex");
+	storedHash = roleRecord.password;
+	if (!storedHash) return [false, undefined];
 
-	return storedHash === calculatedHash;
+	cachedCredentials.set(email, storedHash);
+
+	return [storedHash === calculatedHash, roleRecord];
 }
 
 // The credentials passed to this function must be validated already.
 function getAuthenticationCookie(email, passwordHash, role) {
-	return Buffer.from(`${email}:${passwordHash}:${role}`).toString(
-		"base64",
-	);
+	return Buffer.from(`${email}:${passwordHash}:${role}`).toString("base64");
 }
 
 function getCredentialsFromAuthenticationCookie(cookie) {

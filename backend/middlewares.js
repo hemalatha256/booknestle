@@ -5,7 +5,7 @@ import {
 
 
 // User authentication validation middleware.
-function setAuthenticatedRequestProperty(req, resp, next) {
+async function setAuthenticatedRequestProperty(req, resp, next) {
 	let { Token: token } = req.cookies;
 	if (!token) {
 		req.isLoggedIn = false;
@@ -23,10 +23,11 @@ function setAuthenticatedRequestProperty(req, resp, next) {
 
 		if (!email || !passwordHash || !role) req.isLoggedIn = false;
 		else {
-			const isValidCredentials = validateCredentials(
+			const [isValidCredentials, _] = await validateCredentials(
 				email,
 				passwordHash,
 				role,
+				true
 			);
 			req.isLoggedIn = isValidCredentials;
 		}
