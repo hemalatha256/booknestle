@@ -22,7 +22,7 @@ const bookSchema = new mongoose.Schema({
 		type: mongoose.Schema.Types.ObjectId,
 		// ref: "User"
 		ref: "Seller",
-		required: true
+		required: true,
 	},
 	// userName: { type: String, required: true }
 });
@@ -56,12 +56,16 @@ const orderSchema = new mongoose.Schema({
 	pincode: { type: Number, required: true },
 	totalAmount: { type: Number, required: true },
 	// seller: { type: mongoose.Schema.Types.ObjectId, ref: "seller" },
-	seller: { type: mongoose.Schema.Types.ObjectId, ref: "Seller", required: true },
+	seller: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: "Seller",
+		required: true,
+	},
 	books: [bookSchema],
 	orderedOn: { type: Number, required: true },
-	deliveredOn: { type: Number, required: true },
+	deliveredOn: { type: Number },
 	cancelled: { type: Boolean, required: true, default: false },
-	statusDescription: String
+	statusDescription: String,
 });
 
 const wishlistItemSchema = new mongoose.Schema({
@@ -69,7 +73,6 @@ const wishlistItemSchema = new mongoose.Schema({
 	user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
 	reason: String,
 });
-
 
 // Create models.
 const Seller = mongoose.model("Seller", sellerSchema);
